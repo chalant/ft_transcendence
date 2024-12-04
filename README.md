@@ -9,10 +9,10 @@ Games can be played locally on one computer and remotely between users.
 There is a choice between a quick match or a tournament.
 Both games run server-side.
 
-##### Pong:
+#### Pong:
 Choice between a classic 2D scheme or advanced 3D visuals.
 
-##### Snake:
+#### Snake:
 
 ## User Management
 - Users can subscribe and log in to the website in a secure way.
