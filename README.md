@@ -26,7 +26,7 @@ Choice between a classic 2D scheme or 3D visuals.
 ![Screenshot (82)](https://github.com/user-attachments/assets/7f807ea9-b8c5-4cb1-b0f6-7314ba28860b)
 
 #### Snake:
-![Screenshot (79)](https://github.com/user-attachments/assets/995f4441-9490-44ad-ba67-9ff0ca331bdd)
+![Screenshot (79)](https://github.com/user-attachments/assets/cbdcacb8-186e-4bba-ac4e-85203412e481)
 
 ##### Tournament setup:
 ![Screenshot (68)](https://github.com/user-attachments/assets/f4e5e081-8975-4d74-8563-b0bd4f2ef622)
