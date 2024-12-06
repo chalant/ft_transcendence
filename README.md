@@ -11,14 +11,13 @@ Using Docker to build the server.
 - User profiles display stats, such as wins and losses.
 - Each user has a Match History including 1v1 games, dates, and relevant details, accessible to logged-in users.
 - remote authentication is integrated with OAuth and available to '42' members.
-- 
 ![Screenshot (71)](https://github.com/user-attachments/assets/ce50d88a-9026-4449-8f26-a6fa38386b98)
 ![Screenshot (74)](https://github.com/user-attachments/assets/0c3aaef3-c392-4084-9be6-df59b370103e)
 
 ## Games
 Games can be played locally on one computer or remotely between users.
 You can play a quick match or join a tournament.
-Both games run server-side.
+Both Pong and Snake run server-side.
 
 #### Pong:
 Choice between a classic 2D scheme or 3D visuals.
@@ -28,5 +27,5 @@ Choice between a classic 2D scheme or 3D visuals.
 #### Snake:
 ![Screenshot (79)](https://github.com/user-attachments/assets/cbdcacb8-186e-4bba-ac4e-85203412e481)
 
-##### Tournament setup:
+##### Local tournament setup:
 ![Screenshot (68)](https://github.com/user-attachments/assets/f4e5e081-8975-4d74-8563-b0bd4f2ef622)
