@@ -11,6 +11,7 @@ Using Docker to build the server.
 - User profiles display stats, such as wins and losses.
 - Each user has a Match History including 1v1 games, dates, and relevant details, accessible to logged-in users.
 - remote authentication is integrated with OAuth and available to '42' members.
+
 ![Screenshot (71)](https://github.com/user-attachments/assets/ce50d88a-9026-4449-8f26-a6fa38386b98)
 ![Screenshot (74)](https://github.com/user-attachments/assets/0c3aaef3-c392-4084-9be6-df59b370103e)
 
