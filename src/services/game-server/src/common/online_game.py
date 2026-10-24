@@ -75,9 +75,19 @@ class OnlineMode(object):
 			self._game_session = session
 			if session.get_player(self.player_position):
 				if session.current_players == expected_players:
+					was_paused = session.paused
 					await game_mode.ready(
 						session, self.room_name,
 						self.game_room, state_callback)
+					if was_paused and not session.paused:
+						await self.channel_layer.group_send(
+							self.room_name, {
+								'type': 'game_state',
+								'message': {
+									'type': 'player.reconnected',
+									'player_position': self.player_position
+								}
+							})
 				elif session.current_players < expected_players:
 					await self.channel_layer.group_send(
 					self.room_name,
@@ -195,6 +205,18 @@ class OnlineMode(object):
 			session.remove_consumer(self.player_position, self)
 			if session.current_players == 1:
 				session.pause()
+				if session.started and session.is_running:
+					# tell the remaining player how long before the game ends.
+					await self.channel_layer.group_send(
+						self.room_name, {
+							'type': 'game_state',
+							'message': {
+								'type': 'player.disconnected',
+								'player_position': self.player_position,
+								'player_name': self.player.player_name if self.player.is_guest else self.player.user_name,
+								'timeout': session.pause_timeout
+							}
+						})
 			if game_mode:
 				await game_mode.handle_disconnection(
 					channel_name,

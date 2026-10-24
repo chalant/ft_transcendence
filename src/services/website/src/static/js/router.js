@@ -82,6 +82,11 @@ const Games = async () => {
 			<div class="canvas-container position-relative">
 				<canvas id="gameCanvas2D" class="w-100 border"></canvas>
 				<canvas id="gameCanvas3D" class="w-100 border"></canvas>
+				<div id="disconnect-overlay" class="disconnect-overlay position-absolute top-0 start-0 w-100 h-100 flex-column align-items-center justify-content-center text-light" aria-hidden="true">
+					<p id="disconnect-message" class="fs-4 mb-2"></p>
+					<p class="mb-1">Waiting for reconnection. Game ends in</p>
+					<span id="disconnect-countdown" class="display-3 fw-bold"></span>
+				</div>
 				<div id="game-ui" class="position-absolute top-0 start-0 w-100 h-100 flex-column align-items-center justify-content-center bg-dark">
 					<div id="loading-overlay" class="loading-overlay position-absolute top-0 start-0 w-100 h-100 flex-column align-items-center justify-content-center bg-dark" aria-hidden="true">
 						<div class="spinner"></div>

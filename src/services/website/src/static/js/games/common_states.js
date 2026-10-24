@@ -1,3 +1,51 @@
+// overlay shown over the canvas while the opponent is disconnected.
+class DisconnectOverlay {
+	constructor() {
+		this.timer = null;
+	}
+
+	show(playerName, seconds) {
+		// elements are looked up each time since the router re-renders the page.
+		const overlay = document.getElementById("disconnect-overlay");
+		const message = document.getElementById("disconnect-message");
+		const countdown = document.getElementById("disconnect-countdown");
+		if (!overlay || !message || !countdown)
+			return;
+		this.hide();
+		const deadline = Date.now() + seconds * 1000;
+		const tick = () => {
+			countdown.textContent = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+		};
+		message.textContent = `${playerName} disconnected`;
+		tick();
+		this.timer = setInterval(tick, 250);
+		overlay.style.display = "flex";
+	}
+
+	hide() {
+		if (this.timer) {
+			clearInterval(this.timer);
+			this.timer = null;
+		}
+		const overlay = document.getElementById("disconnect-overlay");
+		if (overlay)
+			overlay.style.display = "none";
+	}
+
+	// returns true if the message was handled.
+	handle(data) {
+		if (data.type == "player.disconnected") {
+			this.show(data.player_name, data.timeout);
+			return true;
+		}
+		if (data.type == "player.reconnected") {
+			this.hide();
+			return true;
+		}
+		return false;
+	}
+}
+
 class GameEndedState {
 	constructor(game, context, prevState, gameModeState) {
 		this.prevState = prevState;
