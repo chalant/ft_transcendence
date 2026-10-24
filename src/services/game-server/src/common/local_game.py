@@ -133,7 +133,9 @@ class LocalMode(object):
 				await self.consumer.send(text_data=json.dumps(data))
 				break
 
-	async def connection_lost(self, game_mode, session: GameSession):
+	async def connection_lost(
+			self, session: GameSession,
+			game_mode, data: dict, game_result):
 		await self.cleanup_data(tournament=game_mode.tournament)
 
 	async def cleanup_data(self, room_closed=False, tournament=None):
