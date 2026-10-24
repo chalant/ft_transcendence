@@ -174,7 +174,8 @@ class OnlineMode(object):
 			game_result.loser = session.get_player(loser_index)
 			game_result.winner_score = data["score"][winner_index]
 			game_result.loser_score = data["score"][loser_index]
-			data = await game_mode.handle_end_game(data, game_result)
+			data = await game_mode.handle_end_game(
+				data, session.consumers, game_result)
 			data['reason'] = 'disconnection'
 			data['player'] = self.player_position
 			# the remaining player stores the game_result

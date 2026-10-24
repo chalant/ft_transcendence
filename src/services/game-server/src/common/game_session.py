@@ -1,5 +1,6 @@
 import time
 import asyncio
+import logging
 import django
 import django.db
 
@@ -11,6 +12,8 @@ from common.db_utils import (
 	delete_game_room,
 	set_in_session
 )
+
+logger = logging.getLogger(__name__)
 
 class GameSession(object):
 	def __init__(self, game_logic, game_server, game_room, game_mode=None, pause_timeout=5):
@@ -43,6 +46,10 @@ class GameSession(object):
 	def num_consumers(self):
 		return len(self._consumers)
 
+	@property
+	def consumers(self):
+		return self._consumers
+
 	def set_player(self, position, player):
 		self._players[position] = player
 
@@ -60,26 +67,37 @@ class GameSession(object):
 		await self._game_logic.update(data, player)
 
 	async def start(self, callback):
-		self._game_result.game = await get_game_room_game(self._game_room)
-		await callback(await self._game_logic.startEvent())
-		self._start_time = t0 = time.time()
-		while self.is_running and not self.error:
-			await asyncio.gather(
-				self.game_loop(callback),
-				asyncio.sleep(0.03)) # about 30 loops/second
-		self._game_result.game_duration = time.time() - t0
-		if not self._disconnected and not self.error:
+		try:
+			self._game_result.game = await get_game_room_game(self._game_room)
+			await callback(await self._game_logic.startEvent())
+			self._start_time = t0 = time.time()
+			while self.is_running and not self.error:
+				await asyncio.gather(
+					self.game_loop(callback),
+					asyncio.sleep(0.03)) # about 30 loops/second
+			self._game_result.game_duration = time.time() - t0
+			if not self._disconnected and not self.error:
+				try:
+					await store_game_result(self._game_result)
+				except django.db.utils.IntegrityError:
+					pass
+			if self.error:
+				await self._game_mode.cleanup_data(
+					self._consumers, self._session_id, self._players)
+		except Exception:
+			# this runs as a detached task: without this the exception is
+			# swallowed and the room/session are never released.
+			logger.exception("game session %s crashed", self._session_id)
+		finally:
+			# always release the room, otherwise its players stay bound to a
+			# dead session and can never join another game.
+			self.is_running = False
 			try:
-				await store_game_result(self._game_result)
-			except django.db.utils.IntegrityError:
-				pass
-		game_room = await get_game_room(self._session_id)
-		if game_room:
-			await delete_game_room(game_room)
-		if self.error:
-			await self._game_mode.cleanup_data(
-				self._consumers, self._session_id, self._players)
-		self._game_server.remove_session(self._session_id)
+				game_room = await get_game_room(self._session_id)
+				if game_room:
+					await delete_game_room(game_room)
+			finally:
+				self._game_server.remove_session(self._session_id)
 
 	async def game_loop(self, callback):
 		try:
