@@ -1,5 +1,6 @@
 class OnlineTournamentGameState {
 	constructor(context, game, prevState) {
+		this.disconnectOverlay = new DisconnectOverlay();
 		this.gameEndState = new GameEndedState(
 			game, context, prevState, this);
 		this.playingState = new PlayingState(
@@ -14,6 +15,7 @@ class OnlineTournamentGameState {
 		this.context = context;
 	};
 	cancel() {
+		this.disconnectOverlay.hide();
 		if (this.socket) {
 			this.socket.close();
 			this.socket = null;
@@ -45,7 +47,10 @@ class OnlineTournamentGameState {
 	}
 
 	update(data) {
+		if (this.disconnectOverlay.handle(data))
+			return;
 		if (data.type == "end") {
+			this.disconnectOverlay.hide();
 			this.context.canvas.style.display = "none";
 			const opponent1 = document.getElementById("opponent1");
 			const opponent2 = document.getElementById("opponent2");

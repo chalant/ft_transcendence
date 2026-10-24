@@ -38,6 +38,7 @@ class GameSession(object):
 			"loser": -1,
 			"score": [-1, -1]}
 		self._paused = False
+		self._started = False
 		self._consumers = []
 		self.consumers_per_player = [0, 0]
 		self.error = False
@@ -49,6 +50,18 @@ class GameSession(object):
 	@property
 	def consumers(self):
 		return self._consumers
+
+	@property
+	def started(self):
+		return self._started
+
+	@property
+	def paused(self):
+		return self._paused
+
+	@property
+	def pause_timeout(self):
+		return self._timeout
 
 	def set_player(self, position, player):
 		self._players[position] = player
@@ -67,6 +80,7 @@ class GameSession(object):
 		await self._game_logic.update(data, player)
 
 	async def start(self, callback):
+		self._started = True
 		try:
 			self._game_result.game = await get_game_room_game(self._game_room)
 			await callback(await self._game_logic.startEvent())
