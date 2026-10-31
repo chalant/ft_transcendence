@@ -1,5 +1,6 @@
 import json
 import asyncio
+import contextlib
 import logging
 import os
 import django
@@ -30,7 +31,7 @@ class GameServer(object):
 	def __init__(self, game_factory):
 		self._game_sessions = {}
 		self._rooms = []
-		self._lock = asyncio.Lock()
+		self._room_locks = {}  # room_name -> [asyncio.Lock, holders + waiters]
 		self._game_factory = game_factory
 
 	def get_game_session(self, game_room, game_mode, pause_timeout=10) -> GameSession:
@@ -49,12 +50,24 @@ class GameServer(object):
 		if session_id in self._game_sessions:
 			del self._game_sessions[session_id]
 
-	async def __aenter__(self):
-		await self._lock.acquire()
-		return self
+	@contextlib.asynccontextmanager
+	async def room_lock(self, room_name: str):
+		"""Serialise session setup/teardown per room; other rooms are unaffected.
 
-	async def __aexit__(self, exc_type, exc_value, exc_tb):
-		self._lock.release()
+		The lock entry exists only while somebody holds or waits for it, so
+		finished rooms leave nothing behind.
+		"""
+		entry = self._room_locks.get(room_name)
+		if entry is None:
+			entry = self._room_locks[room_name] = [asyncio.Lock(), 0]
+		entry[1] += 1
+		try:
+			async with entry[0]:
+				yield
+		finally:
+			entry[1] -= 1
+			if entry[1] == 0:
+				del self._room_locks[room_name]
 
 class GameConsumer(AsyncWebsocketConsumer):
 	def __init__(self, game_server: GameServer, *args, **kwargs):
