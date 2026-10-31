@@ -12,6 +12,7 @@ services:
     depends_on:
       - website
       - game-server
+      - matchmaking
     restart: always
 
   users:
@@ -35,6 +36,8 @@ services:
       postgresql:
         condition: service_healthy
       redis:
+        condition: service_started
+      matchmaking:
         condition: service_started
     healthcheck:
       # the port only opens once migrations are applied and uvicorn is up.
@@ -61,13 +64,37 @@ services:
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY}"
     restart: always
 
+  matchmaking:
+    image:
+      matchmaking-image
+    build:
+      context: .
+      dockerfile: services/matchmaking/Dockerfile
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    networks:
+      - transcendence
+    environment:
+      IP_ADDRESS : "${IP_ADDRESS}"
+      POSTGRES_USER : "${POSTGRES_USER}"
+      POSTGRES_PASSWORD : "${POSTGRES_PASSWORD}"
+      DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY}"
+    healthcheck:
+      # the port only opens once migrations are applied and uvicorn is up.
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8000), 2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+    restart: always
+
   game-server:
     container_name: game-server
     image:
       game-server-image
     build:
-      context: services/game-server/
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: services/game-server/Dockerfile
     depends_on:
       postgresql:
         condition: service_healthy
@@ -75,6 +102,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      matchmaking:
+        condition: service_healthy
     networks:
       - transcendence
     environment:

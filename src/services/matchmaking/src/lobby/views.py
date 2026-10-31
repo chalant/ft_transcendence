@@ -1,13 +1,14 @@
 import uuid
 import json
 import os
-from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse, HttpRequest
+from django.db import transaction
+from django.views.decorators.csrf import csrf_exempt
 import datetime
 from django.db.models import Subquery
 from django.db.utils import DatabaseError
 
-from .models import (
+from games.models import (
 	GameRoom,
 	PlayerRoom,
 	Player,
@@ -18,10 +19,10 @@ from .models import (
 	GameResult
 )
 
-from common import auth_client as auth
+import auth_client as auth
+from .locks import advisory_lock
 
 MAX_TOURNAMENT_PARTICIPANTS = 4
-INITIALIZED = False
 
 def get_host_player(user_data: dict) -> Player:
 	player, created = Player.objects.get_or_create(
@@ -33,11 +34,6 @@ def get_host_player(user_data: dict) -> Player:
 
 def check_request(func):
 	def wrapper(request:HttpRequest) -> JsonResponse:
-		global INITIALIZED
-		if not INITIALIZED:
-			Game.objects.get_or_create(game_name='pong', min_players=2)
-			Game.objects.get_or_create(game_name='snake', min_players=2)
-			INITIALIZED = True
 		user_data = auth.get_user(request)
 		if request.method != 'POST':
 			return JsonResponse({
@@ -71,7 +67,8 @@ def check_request(func):
 					}, status=400)
 				local = json_request['mode'] == 'local'
 			try:
-				return func(request, user_data, game, json_request, local)
+				with transaction.atomic():
+					return func(request, user_data, game, json_request, local)
 			except DatabaseError:
 				return JsonResponse({
 					'status': 0,
@@ -120,6 +117,10 @@ def create_game(request: HttpRequest, user_data: dict, game: Game, game_request,
 				'status': 'playing',
 				'player_id': room_player.player.player_name
 				}, status=200)
+
+	# rooms are filled one request at a time, otherwise num_players is lost
+	# updates and rooms end up with more players than they allow.
+	advisory_lock(f"room:{game.game_name}")
 
 	if local:
 		if 'guest_name' not in game_request:
@@ -244,6 +245,7 @@ def _join_tournament(
 	player: Player,
 	tournament: Tournament,
 	participant: TournamentParticipant=None) -> JsonResponse:
+	advisory_lock(f"tournament:{tournament.tournament_id}")
 
 	# join the tournament by either reconnecting,
 	# joining a room or create a new room.
@@ -305,6 +307,7 @@ def _create_tournament(player: Player, game:Game, max_participants=MAX_TOURNAMEN
 	return tournament, game_room
 
 def create_or_join_tournament(player: Player, game:Game, max_participants=MAX_TOURNAMENT_PARTICIPANTS, local=False) -> JsonResponse:
+	advisory_lock(f"tournament-queue:{game.game_name}:{local}")
 	# if the player is not a participant,
 	# try to join the oldest tournament that isn't full.
 	tournament = Tournament.objects.filter(
@@ -468,7 +471,6 @@ def	find_tournament_view(request: HttpRequest, user_data: dict, game: Game, json
 	# creates a random tournament and puts player in it.
 	return create_or_join_tournament(player, game)
 
-@csrf_exempt
 def game_stats(request: HttpRequest, user_id : int) -> JsonResponse:
 	if request.method != 'GET':
 		return JsonResponse({'status': 0, 'message': 'Only GET method is allowed'}, status=405)
@@ -533,3 +535,36 @@ def game_stats(request: HttpRequest, user_id : int) -> JsonResponse:
 	if nb_games == 0:
 		return JsonResponse({'status': 0, 'message': 'Player never played'}, status=200)
 	return JsonResponse(response_data, status=200)
+
+@csrf_exempt
+def advance(request: HttpRequest) -> JsonResponse:
+	'''
+	Internal (game-server -> matchmaking): a player won a round, move them to the next
+	round of the tournament and put them in a room. Blocked from outside by the proxy.
+	'''
+	if request.method != 'POST':
+		return JsonResponse({'status': 0, 'message': 'Only POST method is allowed'}, status=405)
+	try:
+		body = json.loads(request.body)
+		tournament_id = body['tournament_id']
+		player_id = body['player_id']
+		if not isinstance(tournament_id, str) or not isinstance(player_id, int):
+			raise ValueError
+	except (ValueError, KeyError, TypeError):
+		return JsonResponse({'status': 0, 'message': 'Invalid body'}, status=400)
+
+	with transaction.atomic():
+		participant = TournamentParticipant.objects.select_related(
+			'player', 'tournament__game').filter(
+				tournament_id=tournament_id, player_id=player_id).first()
+		if not participant:
+			return JsonResponse({'status': 0, 'message': 'Participant not found'}, status=404)
+		participant.tournament_round += 1
+		participant.save(update_fields=['tournament_round'])
+		# creates or joins a room in the tournament.
+		_join_tournament(
+			participant.tournament.game,
+			participant.player,
+			participant.tournament,
+			participant)
+	return JsonResponse({'status': 1})
