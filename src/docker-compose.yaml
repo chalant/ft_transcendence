@@ -10,7 +10,8 @@ services:
     networks:
       - transcendence
     depends_on:
-      - postgresql
+      - website
+      - game-server
     restart: always
 
   users:
@@ -31,7 +32,16 @@ services:
     networks:
       - transcendence
     depends_on:
-      - postgresql
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    healthcheck:
+      # the port only opens once migrations are applied and uvicorn is up.
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8000), 2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
     volumes:
       - profile-pictures-data:/home/service/media/profile_pictures
     restart: always
@@ -59,8 +69,12 @@ services:
       context: services/game-server/
       dockerfile: Dockerfile
     depends_on:
-      - users
-      - postgresql
+      postgresql:
+        condition: service_healthy
+      users:
+        condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - transcendence
     environment:
@@ -81,15 +95,23 @@ services:
     environment:
       POSTGRES_USER : "${POSTGRES_USER}"
       POSTGRES_PASSWORD : "${POSTGRES_PASSWORD}"
+    healthcheck:
+      # -h forces TCP: during first-boot init the temporary server only listens
+      # on the unix socket, and the databases are created after it.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
     volumes:
-      - /var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     restart: always
-  
+
   redis:
     image: "redis:alpine"
     container_name: 'redis'
     networks:
       - transcendence
+    restart: always
 
 networks:
   transcendence:
