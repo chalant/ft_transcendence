@@ -1,0 +1,49 @@
+{{- $component := "matchmaking" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: matchmaking
+  labels:
+    {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
+spec:
+  selector:
+    {{- include "ft.selectorLabels" (dict "root" . "component" $component) | nindent 4 }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: matchmaking
+  labels:
+    {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
+spec:
+  # stateless: room placement is serialised by Postgres advisory locks, so it
+  # scales out freely. Every pod applies the `games` migrations on start and
+  # retries until they succeed.
+  replicas: {{ .Values.matchmaking.replicas }}
+  selector:
+    matchLabels:
+      {{- include "ft.selectorLabels" (dict "root" . "component" $component) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ft.labels" (dict "root" . "component" $component) | nindent 8 }}
+    spec:
+      {{- include "ft.pullSecrets" . | nindent 6 }}
+      containers:
+        - name: matchmaking
+          image: {{ include "ft.image" .Values.matchmaking.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            {{- include "ft.env.ipAddress" . | nindent 12 }}
+            {{- include "ft.env.postgres" . | nindent 12 }}
+            {{- include "ft.env.django" . | nindent 12 }}
+          {{- include "ft.httpProbes" (dict "port" "http") | nindent 10 }}
+          resources:
+            {{- toYaml .Values.matchmaking.resources | nindent 12 }}

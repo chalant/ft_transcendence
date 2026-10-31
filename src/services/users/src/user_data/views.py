@@ -49,7 +49,7 @@ def personal_stats(request : HttpRequest) -> JsonResponse:
         return JsonResponse({'status': 0, 'message': 'Only GET method is allowed'}, status=405)
     if not request.user.is_authenticated:
         return JsonResponse({'status': 0, 'message': 'User not connected'}, status=401)
-    connection = client.HTTPConnection("game-server:8000", timeout=5)
+    connection = client.HTTPConnection("matchmaking:8000", timeout=5)
     connection.request("GET", f"/game_stats/{request.user.id}/")
     response = connection.getresponse()
     data = json.loads(response.read().decode())
@@ -73,7 +73,7 @@ def get_profile(request: HttpRequest, username: str) -> JsonResponse:
     if not user_profile:
         return JsonResponse({'status': 0, 'message': 'User profile not found'}, status=404)
 
-    connection = client.HTTPConnection("game-server:8000", timeout=5)
+    connection = client.HTTPConnection("matchmaking:8000", timeout=5)
     connection.request("GET", f"/game_stats/{user.id}/")
     response = connection.getresponse()
     data = json.loads(response.read().decode())

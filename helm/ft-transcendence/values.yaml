@@ -66,6 +66,13 @@ gameServer:
   # always runs as a single replica.
   resources: {}
 
+matchmaking:
+  image:
+    repository: matchmaking-image
+    tag: latest
+  replicas: 2
+  resources: {}
+
 postgresql:
   image:
     repository: postgresql-image

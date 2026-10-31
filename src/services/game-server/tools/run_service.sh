@@ -2,9 +2,10 @@
 
 cd /home/service
 
-python3 manage.py makemigrations
-until python3 manage.py migrate; do
-	echo "Waiting for database..."
+# the matchmaking service owns the schema of the `games` database: wait until it
+# is applied (also fails while the database is unreachable).
+until python3 manage.py migrate --check >/dev/null 2>&1; do
+	echo "Waiting for matchmaking migrations..."
 	sleep 2
 done
 

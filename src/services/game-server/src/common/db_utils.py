@@ -11,7 +11,7 @@ from games.models import (
 	Tournament,
 	TournamentParticipant)
 
-from games.views import _join_tournament
+from common import matchmaking_client
 
 @database_sync_to_async
 def get_player_room(user_id: str, game_room: str, player_name="host") -> PlayerRoom:
@@ -116,11 +116,7 @@ def get_remaining_participants(tournament: Tournament) -> int:
 
 @database_sync_to_async
 def qualify_player(player: Player, tournament: Tournament) -> None:
-	participant = TournamentParticipant.objects.filter(player=player, tournament=tournament).first()
-	participant.tournament_round += 1
-	participant.save(update_fields=['tournament_round'])
-	# creates or joins a room in the tournament.
-	_join_tournament(tournament.game, player, tournament, participant)
+	matchmaking_client.advance(tournament.tournament_id, player.id)
 
 @database_sync_to_async
 def get_tournament_participant(player: Player, tournament: Tournament) -> None:
