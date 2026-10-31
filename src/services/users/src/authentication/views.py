@@ -1,5 +1,3 @@
-from common import jwt
-
 from django.shortcuts import render
 from django.contrib.auth import get_user_model, login, logout
 from django.http import JsonResponse, HttpResponse, HttpRequest
@@ -11,8 +9,7 @@ from uuid import uuid4
 from http import client
 import random
 import string
-import time
-from datetime import datetime, timedelta
+from . import tokens
 from .models import UserToken
 from user_data.models import UserProfile
 from user_data.services import create_profile
@@ -22,35 +19,7 @@ from asgiref.sync import async_to_sync
 
 User = get_user_model()
 
-SECRET = os.environ.get('JWT_SECRET_KEY').encode('utf-8')
-
 MIN_PASSWORD_LENGTH = 5
-
-def create_jwt(username):
-	header = {
-		"alg": "HS256",
-		"typ": "JWT"
-	}
-
-	now = datetime.now()
-	exp = now + timedelta(hours=2)
-
-	payload = {
-		"sub": uuid4().int,
-		"name": username,
-		"iat": int(now.timestamp()),
-		"exp": int(exp.timestamp()),
-		"iss": "ft_transcendence.com"
-	}
-
-	payload_json = json.dumps(payload, separators=(',', ':')).encode('utf-8')
-	payload_b64 = jwt.base64url_encode(payload_json)
-	header_json = json.dumps(header, separators=(',', ':')).encode('utf-8')
-	header_b64 = jwt.base64url_encode(header_json)
-	signature = jwt.hmac.new(SECRET, f"{header_b64}.{payload_b64}".encode('utf-8'), jwt.hashlib.sha256).digest()
-	signature_b64 = jwt.base64url_encode(signature)
-
-	return f"{header_b64}.{payload_b64}.{signature_b64}"
 
 def get_jwt(request):
 	auth = request.headers.get('Authorization')
@@ -65,32 +34,19 @@ def get_jwt(request):
 		return None
 	return values[1]
 
-def validate_jwt(token):
-	if not token:
-		raise ValueError("No token")
-	payload = jwt.verify_jwt(token, SECRET)
-	exp = payload.get("exp")
-	if exp is None:
-		raise ValueError("Token has no expiration time")
-	# Compare with the current time
-	current_time = int(time.time())
-	if current_time > exp:
-		raise ValueError("Token has expired")
-
 def check_jwt(request) -> User:
 	# check if we have the token in the database -> means that user has not logged out
 	token = get_jwt(request)
 	user_token = UserToken.objects.filter(token=token).first()
 	if not user_token:
 		return None
-	# check if the token is still valid.
-	try:
-		validate_jwt(token)
-		return user_token.user
-	except ValueError:
+	# check that the token is genuine, unexpired and belongs to the stored user.
+	payload = tokens.verify(token)
+	if payload is None or payload["sub"] != str(user_token.user_id):
 		# remove the token from the database as it is invalid
 		user_token.delete()
 		return None
+	return user_token.user
 
 def custom_login(request : HttpRequest, username, password):
 	user = User.objects.filter(username=username).first()
@@ -148,7 +104,7 @@ def profile_mini(request : HttpRequest, jwt_existing: bool) -> JsonResponse:
 		return JsonResponse({'status': 0, 'message': 'Profile picture not found'}, status=404)
 
 	if not jwt_existing:
-		token = create_jwt(request.user.username)
+		token = tokens.issue(request.user)
 		user_token, created = UserToken.objects.get_or_create(user=request.user)
 		user_token.token = token
 		if not created:
