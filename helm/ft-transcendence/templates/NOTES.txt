@@ -1,0 +1,22 @@
+ft_transcendence is deploying in namespace {{ .Release.Namespace }}.
+
+Watch the pods come up (the Django services run their migrations first):
+  kubectl -n {{ .Release.Namespace }} get pods -w
+
+Then open: https://{{ include "ft.ipAddress" . }}/
+The proxy uses a self-signed certificate: accept the browser warning.
+
+{{- if .Values.traefik.passthrough.enabled }}
+
+Traffic reaches the proxy through Traefik's "{{ .Values.traefik.passthrough.entryPoint }}" entrypoint (TLS passthrough).
+{{- else if eq .Values.proxy.service.type "LoadBalancer" }}
+
+The proxy is exposed by a LoadBalancer service on port {{ .Values.proxy.service.port }}:
+  kubectl -n {{ .Release.Namespace }} get svc proxy-server
+"{{ .Values.ipAddress }}" must resolve to its external IP.
+{{- else }}
+
+The proxy service is {{ .Values.proxy.service.type }}. The site only works when served on port 443
+at "{{ .Values.ipAddress }}", for example:
+  sudo kubectl -n {{ .Release.Namespace }} port-forward svc/proxy-server 443:{{ .Values.proxy.service.port }}
+{{- end }}

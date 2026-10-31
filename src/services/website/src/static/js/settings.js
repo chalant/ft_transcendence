@@ -112,7 +112,7 @@ function updateAlertPlaceholderError(message) {
 	var alertPlaceholder = document.getElementById('alert-placeholder');
 	alertPlaceholder.innerHTML = `
 		<div class="error-banner" role="alert">
-			${message}
+			${escapeHtml(message)}
 		</div>
 	`;
 }
@@ -121,7 +121,7 @@ function successAlertPlaceholder(message) {
 	var alertPlaceholder = document.getElementById('alert-placeholder');
 	alertPlaceholder.innerHTML = `
 		<div class="success-banner" id="success-alert" role="alert">
-		   ${message}
+		   ${escapeHtml(message)}
 		</div>
 `;
 

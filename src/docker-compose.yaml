@@ -48,7 +48,6 @@ services:
       - transcendence
     environment:
       IP_ADDRESS : "${IP_ADDRESS}"
-      SESSION_SERVER : "${SESSION_SERVER}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY}"
     restart: always
 

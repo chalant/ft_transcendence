@@ -125,7 +125,7 @@ class WaitScreen {
 		this.context.gameUI.style.display = 'flex';
 		this.context.gameMenu.style.display = 'flex';
 		this.context.gameMenuHeader.textContent = `NEXT PLAYERS`;
-		this.context.gameMenuBody.innerHTML = `Next up are:<br>${this.room.player1}<br>${this.room.player2}`;
+		this.context.gameMenuBody.innerHTML = `Next up are:<br>${escapeHtml(this.room.player1)}<br>${escapeHtml(this.room.player2)}`;
 		this.context.gameMenuFooter.innerHTML = `
 		<div class="d-flex flex-row align-items-center mt-2">
 			<button type="button" id="nextGame" class="btn btn-outline-light mx-2 w-100">Ready</button>
@@ -244,8 +244,8 @@ class LocalTournamentGameState {
 				const opponent1 = document.getElementById("opponent1");
 				const opponent2 = document.getElementById("opponent2");
 				if (opponent1 && opponent2) {
-					opponent1.innerHTML = room.player1;
-					opponent2.innerHTML = room.player2;
+					opponent1.textContent = room.player1;
+					opponent2.textContent = room.player2;
 					if (this.game.name === "snake")
 						opponent2.className = "text-success";
 					else

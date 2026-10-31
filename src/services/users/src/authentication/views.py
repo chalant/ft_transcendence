@@ -14,6 +14,9 @@ import string
 import time
 from datetime import datetime, timedelta
 from .models import UserToken
+from user_data.models import UserProfile
+from user_data.services import create_profile
+from .validators import validate_username
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
@@ -21,7 +24,6 @@ User = get_user_model()
 
 SECRET = os.environ.get('JWT_SECRET_KEY').encode('utf-8')
 
-MIN_USERNAME_LENGTH = 5
 MIN_PASSWORD_LENGTH = 5
 
 def create_jwt(username):
@@ -141,26 +143,9 @@ def logout_view(request : HttpRequest) -> JsonResponse:
 
 def profile_mini(request : HttpRequest, jwt_existing: bool) -> JsonResponse:
 	try:
-		connection = client.HTTPConnection("users:8000")
-		connection.request("GET", f"/get_picture/{request.user.id}/")
-		response = connection.getresponse()
-		raw_data = response.read().decode()
-
-		if response.status != 200:
-			return JsonResponse({'status': 0, 'message': 'Failed to retrieve profile picture'}, status=response.status)
-		if not raw_data:
-			return JsonResponse({'status': 0, 'message': 'Empty response from users service'}, status=400)
-
-		profile_picture = json.loads(raw_data).get('profile_picture')
-		if not profile_picture:
-			return JsonResponse({'status': 0, 'message': 'Profile picture not found'}, status=404)
-
-	except json.JSONDecodeError:
-		return JsonResponse({'status': 0, 'message': 'Invalid JSON response from users service'}, status=400)
-	except Exception as e:
-		return JsonResponse({'status': 0, 'message': f'An error occurred: {str(e)}'}, status=400)
-	finally:
-		connection.close()
+		profile_picture = UserProfile.objects.get(user_id=request.user.id).profile_picture.url
+	except UserProfile.DoesNotExist:
+		return JsonResponse({'status': 0, 'message': 'Profile picture not found'}, status=404)
 
 	if not jwt_existing:
 		token = create_jwt(request.user.username)
@@ -197,8 +182,9 @@ def sign_up_view(request : HttpRequest) -> JsonResponse:
 
 	if (len(data["password"]) < MIN_PASSWORD_LENGTH):
 		return JsonResponse({'status': 0, 'message' : 'Password too short'}, status=400)
-	if (len(data["username"]) < MIN_USERNAME_LENGTH):
-		return JsonResponse({'status': 0, 'message' : 'Username too short'}, status=400)
+	error = validate_username(data["username"])
+	if error:
+		return JsonResponse({'status': 0, 'message': error}, status=400)
 
 	try:
 		user = User.objects.create_user(data["username"], password=data["password"])
@@ -212,12 +198,10 @@ def sign_up_view(request : HttpRequest) -> JsonResponse:
 	user.is_active = True
 	user.save()
 
-	# send create_user to user_data app
-	connection = client.HTTPConnection("users:8000")
-	connection.request("POST", "/create_user/", json.dumps({"user_id": user.id, "profile_picture": ""}), {'Content-Type': 'application/json'})
-	response = connection.getresponse()
-	connection.close()
-	if response.status != 201:
+	try:
+		create_profile(user)
+	except Exception:
+		user.delete()
 		return JsonResponse({'status': 0, 'message': 'User creation failed'}, status=400)
 
 	login(request, user)
@@ -343,12 +327,9 @@ def auth42_view(request : HttpRequest) -> HttpResponse:
 		new_user.is_active = True
 		new_user.save()
 
-		profile_picture = MeData["image"]["link"]
-		connection = client.HTTPConnection("users:8000")
-		connection.request("POST", "/create_user/", json.dumps({"user_id": new_user.id, "profile_picture": profile_picture}))
-		response = connection.getresponse()
-		connection.close()
-		if response.status != 201:
+		try:
+			create_profile(new_user, MeData["image"]["link"])
+		except Exception:
 			new_user.delete()
 			return auth42_response(request, 0, "Could not create user")
 		login(request, new_user)
@@ -365,8 +346,9 @@ def change_username_view(request : HttpRequest) -> JsonResponse:
 		data: dict = json.loads(request.body)
 	except json.decoder.JSONDecodeError:
 		return JsonResponse({'status': 0, 'message': 'Couldn\'t read input'}, status=400)
-	if (len(data["username"]) < MIN_USERNAME_LENGTH):
-		return JsonResponse({'status': 0, 'message' : 'Username too short'}, status=400)
+	error = validate_username(data["username"])
+	if error:
+		return JsonResponse({'status': 0, 'message': error}, status=400)
 	if User.objects.filter(username=data["username"]).exists():
 		return JsonResponse({'status': 0, 'message' : 'Username already exists'}, status=400)
 	user = User.objects.get(id=request.user.id)

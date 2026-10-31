@@ -19,7 +19,7 @@ function successAlertPlaceholder(message) {
 	var alertPlaceholder = document.getElementById('alert-placeholder');
 	alertPlaceholder.innerHTML = `
 		<div class="success-banner" id="success-alert" role="alert">
-		   ${message}
+		   ${escapeHtml(message)}
 		</div>
 	`;
 
@@ -38,7 +38,7 @@ function updateAlertPlaceholderError(message) {
 	var alertPlaceholder = document.getElementById('alert-placeholder');
 	alertPlaceholder.innerHTML = `
 		<div class="error-banner" role="alert">
-			${message}
+			${escapeHtml(message)}
 		</div>
 	`;
 }
@@ -48,13 +48,13 @@ function replaceLoginButtons(user) {
 	profileMenu.innerHTML = `
 		<div class="dropdown">
 			<a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-				<span class="ms-2 me-2 text-white">${user.username}</span>
+				<span class="ms-2 me-2 text-white">${escapeHtml(user.username)}</span>
 				<div class="profile-picture-container">
-					<img src="${user.profile_picture}" class="profile-picture">
+					<img src="${escapeHtml(user.profile_picture)}" class="profile-picture">
 				</div>
 			</a>
 			<ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
-				<li><a href="/user/${user.username}" class="dropdown-item btn btn-outline-light" data-link>Profile</a></li>
+				<li><a href="/user/${escapeHtml(user.username)}" class="dropdown-item btn btn-outline-light" data-link>Profile</a></li>
 				<li><a href="/settings" class="dropdown-item btn btn-outline-light" data-link>Settings</a></li>
 				<li><hr class="dropdown-divider"></li>
 				<li><a class="dropdown-item btn btn-outline-light" id="logout">Logout</a></li>
@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", function() {
 		const status = document.getElementById('status');
 		if (status.innerHTML === "0") {
 			const message = document.getElementById('message');
-			updateAlertPlaceholderError(message.innerHTML);
+			updateAlertPlaceholderError(message.textContent);
 		} else {
 			successAlertPlaceholder('Welcome!');
 		}

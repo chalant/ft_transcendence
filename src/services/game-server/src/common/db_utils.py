@@ -2,7 +2,6 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import BaseChannelLayer
 
-from common.models import UserChannel
 from games.models import (
 	Game,
 	Player,
@@ -13,24 +12,6 @@ from games.models import (
 	TournamentParticipant)
 
 from games.views import _join_tournament
-
-@database_sync_to_async
-def get_user_channel(user_id: str) -> UserChannel:
-	return UserChannel.objects.filter(
-		user_id=user_id
-	).first()
-
-@database_sync_to_async
-def store_user_channel(user_id: str, channel_name):
-	UserChannel(
-		user_id=user_id,
-		channel_name=channel_name).save()
-
-@database_sync_to_async
-def delete_user_channel(user_id: str, channel_name):
-	UserChannel.objects.filter(
-		user_id=user_id,
-		channel_name=channel_name).delete()
 
 @database_sync_to_async
 def get_player_room(user_id: str, game_room: str, player_name="host") -> PlayerRoom:

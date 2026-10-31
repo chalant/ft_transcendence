@@ -1,0 +1,11 @@
+# Overlay for k3s: its bundled Traefik already listens on 443, so the proxy
+# stays internal and Traefik passes TLS traffic through to it.
+#   helm upgrade --install transcendence helm/ft-transcendence \
+#     -n transcendence --create-namespace -f helm/ft-transcendence/values-k3s.yaml
+proxy:
+  service:
+    type: ClusterIP
+
+traefik:
+  passthrough:
+    enabled: true
