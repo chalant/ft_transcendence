@@ -93,8 +93,8 @@ class OnlineTournamentGameState {
 		}
 		else if (data.type == "room.players") {
 			if (data.values.length == 2) {
-				opponent1.innerHTML = data.values[0].player_name;
-				opponent2.innerHTML = data.values[1].player_name;
+				opponent1.textContent = data.values[0].player_name;
+				opponent2.textContent = data.values[1].player_name;
 				if (this.game.name === "snake")
 					opponent2.className = "text-success";
 				else

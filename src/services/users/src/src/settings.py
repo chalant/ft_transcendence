@@ -34,7 +34,6 @@ CSRF_TRUSTED_ORIGINS = ['http://users', 'https://' + str(os.environ.get('IP_ADDR
 
 INSTALLED_APPS = [
 	'authentication',
-	'session_manager',
     'user_data',
     'friends',
     'channels',

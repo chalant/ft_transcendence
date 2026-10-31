@@ -12,6 +12,7 @@ RUN			rm -f /etc/nginx/nginx.conf && \
 			-subj "/C=BE/ST=IDF/L=Bruxelles/O=42/OU=42/CN=ft_transcendence.fr/UID=login"
 
 COPY		conf/nginx.conf /etc/nginx/nginx.conf
+COPY		conf/proxy_params.conf /etc/nginx/proxy_params.conf
 COPY		tools/run_service.sh /bin/run_service.sh
 
 RUN			chmod +x /bin/run_service.sh

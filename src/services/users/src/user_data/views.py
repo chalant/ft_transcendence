@@ -1,8 +1,6 @@
-from django.views.decorators.csrf import csrf_exempt
 from user_data.models import UserProfile
 from django.http import HttpResponse, JsonResponse, FileResponse, HttpRequest
 import json
-from django.core.files.base import ContentFile
 from django.conf import settings
 import os
 from http import client
@@ -11,41 +9,19 @@ from friends.models import Relation
 
 User = get_user_model()
 
-# Create user in the database user_data
-@csrf_exempt
-def create_user(request : HttpRequest):
-    body = json.loads(request.body)
-    user_id = body['user_id']
-
-    try:
-        user = User.objects.get(id=user_id)  # Retrieve the User instance using the user_id
-    except User.DoesNotExist:
-        return HttpResponse(status=400)
-
-    if len(body["profile_picture"]) > 0:
-        image_url: str = body["profile_picture"]
-        url_parsed: list = image_url.split("/")
-        connection = client.HTTPSConnection(url_parsed[2])
-        connection.request("GET", "/" + "/".join(url_parsed[3:]))
-        response = connection.getresponse()
-        if response.status != 200:
-            connection.close()
-            return HttpResponse(status=response.status)
-        image = ContentFile(response.read(), name=str(user_id) + ".jpg")
-        connection.close()
-        new_user = UserProfile(user=user, profile_picture=image)
-    else:
-        new_user = UserProfile(user=user)
-    new_user.save()
-    return HttpResponse(status=201)
-
-@csrf_exempt
-def get_picture_url(request, user_id: int) -> JsonResponse:
-    user = UserProfile.objects.get(user_id=user_id)
-    if not user:
-        return JsonResponse({'profile_picture': ""}, status=404)
-    profile_picture = user.profile_picture.url
-    return JsonResponse({'profile_picture': profile_picture}, status=200)
+def _attach_opponent_names(data: dict) -> None:
+    # replaces each game's "opponent_id" with the opponent's username (single query).
+    results = [
+        result
+        for game, stats in data.items()
+        if game != 'status' and 'games' in stats
+        for result in stats['games']
+    ]
+    names = dict(User.objects.filter(
+        id__in={result["opponent_id"] for result in results}
+    ).values_list('id', 'username'))
+    for result in results:
+        result["opponent"] = names.get(result.pop("opponent_id"), "deleted user")
 
 def get_image(request : HttpRequest, filename: str):
     if request.method != 'GET':
@@ -73,7 +49,7 @@ def personal_stats(request : HttpRequest) -> JsonResponse:
         return JsonResponse({'status': 0, 'message': 'Only GET method is allowed'}, status=405)
     if not request.user.is_authenticated:
         return JsonResponse({'status': 0, 'message': 'User not connected'}, status=401)
-    connection = client.HTTPConnection("game-server:8000")
+    connection = client.HTTPConnection("game-server:8000", timeout=5)
     connection.request("GET", f"/game_stats/{request.user.id}/")
     response = connection.getresponse()
     data = json.loads(response.read().decode())
@@ -81,15 +57,7 @@ def personal_stats(request : HttpRequest) -> JsonResponse:
     if response.status != 200 or data['status'] == 0:
         return JsonResponse(data, status=response.status)
 
-    for game in data:
-        if game == 'status':
-            continue
-        if not 'games' in data[game]:
-            continue
-        for result in data[game]["games"]:
-            name = UserProfile.objects.get(user_id=result["opponent_id"]).user.username
-            result["opponent"] = name
-            result.pop("opponent_id")
+    _attach_opponent_names(data)
 
     return JsonResponse(data, status=response.status)
 
@@ -105,21 +73,13 @@ def get_profile(request: HttpRequest, username: str) -> JsonResponse:
     if not user_profile:
         return JsonResponse({'status': 0, 'message': 'User profile not found'}, status=404)
 
-    connection = client.HTTPConnection("game-server:8000")
+    connection = client.HTTPConnection("game-server:8000", timeout=5)
     connection.request("GET", f"/game_stats/{user.id}/")
     response = connection.getresponse()
     data = json.loads(response.read().decode())
     connection.close()
 
-    for game in data:
-        if game == 'status':
-            continue
-        if not 'games' in data[game]:
-            continue
-        for result in data[game]["games"]:
-            name = UserProfile.objects.get(user_id=result["opponent_id"]).user.username
-            result["opponent"] = name
-            result.pop("opponent_id")
+    _attach_opponent_names(data)
 
     if not UserProfile.objects.filter(user=request.user).exists():
         return JsonResponse({'status': 0, 'message': 'Could not get user info'}, status=400)

@@ -1,0 +1,45 @@
+{{- $component := "website" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: website
+  labels:
+    {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
+spec:
+  selector:
+    {{- include "ft.selectorLabels" (dict "root" . "component" $component) | nindent 4 }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: website
+  labels:
+    {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "ft.selectorLabels" (dict "root" . "component" $component) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ft.labels" (dict "root" . "component" $component) | nindent 8 }}
+    spec:
+      {{- include "ft.pullSecrets" . | nindent 6 }}
+      containers:
+        - name: website
+          image: {{ include "ft.image" .Values.website.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            {{- include "ft.env.ipAddress" . | nindent 12 }}
+            {{- include "ft.env.django" . | nindent 12 }}
+          {{- include "ft.httpProbes" (dict "port" "http") | nindent 10 }}
+          resources:
+            {{- toYaml .Values.website.resources | nindent 12 }}

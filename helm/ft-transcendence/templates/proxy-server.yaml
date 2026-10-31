@@ -1,0 +1,50 @@
+{{- $component := "proxy-server" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: proxy-server
+  labels:
+    {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
+  {{- with .Values.proxy.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.proxy.service.type }}
+  selector:
+    {{- include "ft.selectorLabels" (dict "root" . "component" $component) | nindent 4 }}
+  ports:
+    - name: https
+      port: {{ .Values.proxy.service.port }}
+      targetPort: https
+      {{- if and (eq .Values.proxy.service.type "NodePort") .Values.proxy.service.nodePort }}
+      nodePort: {{ .Values.proxy.service.nodePort }}
+      {{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: proxy-server
+  labels:
+    {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "ft.selectorLabels" (dict "root" . "component" $component) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ft.labels" (dict "root" . "component" $component) | nindent 8 }}
+    spec:
+      {{- include "ft.pullSecrets" . | nindent 6 }}
+      containers:
+        - name: proxy-server
+          image: {{ include "ft.image" .Values.proxy.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: https
+              containerPort: 443
+          {{- include "ft.httpProbes" (dict "port" "https") | nindent 10 }}
+          resources:
+            {{- toYaml .Values.proxy.resources | nindent 12 }}

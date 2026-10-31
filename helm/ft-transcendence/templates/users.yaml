@@ -1,0 +1,84 @@
+{{- $component := "users" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: users
+  labels:
+    {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
+spec:
+  selector:
+    {{- include "ft.selectorLabels" (dict "root" . "component" $component) | nindent 4 }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+{{- if .Values.users.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: users-profile-pictures
+  labels:
+    {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.users.persistence.accessMode }}
+  {{- with .Values.users.persistence.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.users.persistence.size }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users
+  labels:
+    {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
+spec:
+  replicas: 1
+  # the profile pictures volume is ReadWriteOnce.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "ft.selectorLabels" (dict "root" . "component" $component) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "ft.labels" (dict "root" . "component" $component) | nindent 8 }}
+    spec:
+      {{- include "ft.pullSecrets" . | nindent 6 }}
+      containers:
+        - name: users
+          image: {{ include "ft.image" .Values.users.image }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            {{- include "ft.env.ipAddress" . | nindent 12 }}
+            {{- include "ft.env.postgres" . | nindent 12 }}
+            {{- include "ft.env.django" . | nindent 12 }}
+            {{- include "ft.secretEnv" (dict "root" . "name" "JWT_SECRET_KEY") | nindent 12 }}
+            {{- include "ft.secretEnv" (dict "root" . "name" "CLIENT_SECRET") | nindent 12 }}
+            - name: CLIENT_ID
+              value: {{ .Values.oauth.clientId | quote }}
+            - name: REDIRECT_URI
+              value: {{ .Values.oauth.redirectUri | default (printf "https://%s/auth/auth42/" (include "ft.ipAddress" .)) | quote }}
+          {{- include "ft.httpProbes" (dict "port" "http") | nindent 10 }}
+          resources:
+            {{- toYaml .Values.users.resources | nindent 12 }}
+          volumeMounts:
+            - name: profile-pictures
+              mountPath: /home/service/media/profile_pictures
+      volumes:
+        - name: profile-pictures
+          {{- if .Values.users.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: users-profile-pictures
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

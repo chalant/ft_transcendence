@@ -61,8 +61,8 @@ class OnlineQuickGameState {
 		else if (data.type == "room.players") {
 
 			if (data.values.length == 2) {
-				opponent1.innerHTML = data.values.filter(player => player.player_position === 0)[0].player_name;
-				opponent2.innerHTML = data.values.filter(player => player.player_position === 1)[0].player_name;
+				opponent1.textContent = data.values.filter(player => player.player_position === 0)[0].player_name;
+				opponent2.textContent = data.values.filter(player => player.player_position === 1)[0].player_name;
 
 				if (this.game.name === "snake")
 					opponent2.className = "text-success";

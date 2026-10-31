@@ -240,11 +240,11 @@ const Friends = async () => {
 				<div class="friend-item">
 					<div class="friend-info">
 						<div class="friend-picture-container">
-							<a href="/user/${friend.username}" data-link>
-								<img class="friend-picture" src="${friend.profile_picture}" alt="${friend.username}">
+							<a href="/user/${escapeHtml(friend.username)}" data-link>
+								<img class="friend-picture" src="${escapeHtml(friend.profile_picture)}" alt="${escapeHtml(friend.username)}">
 							</a>
 					</div>
-					<span class="friend-name">${friend.username}</span>
+					<span class="friend-name">${escapeHtml(friend.username)}</span>
 					<div class="online_status ${friend.is_online ? 'online' : 'offline'}"></div>
 				</div>
 			`;
@@ -278,11 +278,11 @@ const Friends = async () => {
 				<div class="friend-request-item">
 					<div class="friend-info">
 						<div class="friend-picture-container">
-							<a href="/user/${friendRequest.username}" data-link>
-								<img class="friend-picture" src="${friendRequest.profile_picture}" alt="${friendRequest.username}">
+							<a href="/user/${escapeHtml(friendRequest.username)}" data-link>
+								<img class="friend-picture" src="${escapeHtml(friendRequest.profile_picture)}" alt="${escapeHtml(friendRequest.username)}">
 							</a>
 						</div>
-						<span class="friend-name">${friendRequest.username}</span>
+						<span class="friend-name">${escapeHtml(friendRequest.username)}</span>
 					</div>
 					<div class="friend-action-buttons">
 						<button class="btn btn-outline-success" id="accept-request-list" data-relation-id="${friendRequest.id}">Accept</button>
@@ -407,7 +407,7 @@ function updateGameStats(gameType, stats) {
 			const resultText = game.is_winner ? 'Victory' : 'Defeat';
 			listItem.innerHTML = `
 				<strong>${resultText}</strong> |
-				Opponent: <a href="/user/${game.opponent}" class="text-white" data-link>${game.opponent}</a> |
+				Opponent: <a href="/user/${escapeHtml(game.opponent)}" class="text-white" data-link>${escapeHtml(game.opponent)}</a> |
 				Score: ${game.personal_score} - ${game.opponent_score} |
 				Duration: ${game.game_duration} |
 				Date: ${new Date(game.game_date).toLocaleString()}
@@ -455,15 +455,15 @@ const UserProfile = async (username) => {
 		return `
 			<div class="text-center">
 				<h2>User Not Found</h2>
-				<p>The user ${username} does not exist.</p>
+				<p>The user ${escapeHtml(username)} does not exist.</p>
 			</div>
 		`;
 	}
 
 	const app_content = `
 	<div class="container text-center my-5">
-		<img src="${data.profile_picture}" alt="${data.username}" class="rounded-circle mb-4 profile-picture-preview">
-		<h1 class="fw-bold text-dark">${data.username}</h1>
+		<img src="${escapeHtml(data.profile_picture)}" alt="${escapeHtml(data.username)}" class="rounded-circle mb-4 profile-picture-preview">
+		<h1 class="fw-bold text-dark">${escapeHtml(data.username)}</h1>
 
 		<div id="friendship" class="my-4"></div>
 

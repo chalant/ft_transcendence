@@ -1,3 +1,7 @@
+function escapeHtml(value) {
+	return String(value).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+}
+
 class CustomGrid {
 	constructor(col_size, id, spacing=null) {
 		this.col_size = col_size;
@@ -55,7 +59,7 @@ class PlayersGrid {
 	generatePlayer(player) {
 		return `
 		<div class="card text-center text-light player-card bg-dark">
-			<h5 class="card-title text-light">${player.player_name}</h5>
+			<h5 class="card-title text-light">${escapeHtml(player.player_name)}</h5>
 		</div>`;
 	}
 
