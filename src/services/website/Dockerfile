@@ -1,11 +1,7 @@
-FROM		alpine:3.20
+FROM		python:3.11-slim
 
-RUN			apk update && apk upgrade && apk add \
-			python3-dev \
-			build-base \
-			jpeg-dev \
-			zlib-dev \
-			py3-django
+COPY		requirements.txt /tmp/requirements.txt
+RUN			pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY		src /home/service
 COPY		tools/run_service.sh /bin/run_service.sh
