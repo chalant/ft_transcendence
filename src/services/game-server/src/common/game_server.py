@@ -12,7 +12,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'src.settings')
 django.setup()
 
-from common import auth_client as auth
+import auth_client as auth
 from common.db_utils import (
 	get_tournament_room,
 	get_tournament_room_tournament_id,

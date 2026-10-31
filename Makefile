@@ -21,7 +21,7 @@ fclean: clean
 	docker volume prune -f
 
 # Kubernetes (k3s): import the locally built images, then install the chart.
-K8S_IMAGES = proxy-server-image users-image website-image game-server-image postgresql-image
+K8S_IMAGES = proxy-server-image users-image website-image game-server-image matchmaking-image postgresql-image
 K8S_NAMESPACE = transcendence
 CHART = helm/ft-transcendence
 

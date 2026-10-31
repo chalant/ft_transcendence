@@ -1,7 +1,7 @@
 {{/*
 Service names are fixed: the services reach each other through hostnames
 hardcoded in their settings, startup scripts and nginx.conf (postgresql, redis,
-users, website, game-server). Install one release per namespace.
+users, website, game-server, matchmaking). Install one release per namespace.
 */}}
 
 {{- define "ft.labels" -}}
