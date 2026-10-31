@@ -66,8 +66,8 @@ class OnlineMode(object):
 		if not player_room:
 			await self.get_game_room()
 		expected_players = await get_min_players(self.game_room)
-		async with self._game_server as server:
-			session = server.get_game_session(self.game_room, game_mode)
+		async with self._game_server.room_lock(self.room_name):
+			session = self._game_server.get_game_session(self.game_room, game_mode)
 			# if the amount of players is met, notify all clients.
 			self.player_position = await get_player_position(player_room)
 			self.player = await get_player_room_player(player_room)
@@ -135,7 +135,7 @@ class OnlineMode(object):
 		if not self._game_session:
 			return
 		if not game_mode.started:
-			async with self._game_server:
+			async with self._game_server.room_lock(self.room_name):
 				await game_mode.ready(
 					self._game_session,
 					self.room_name,
@@ -144,7 +144,7 @@ class OnlineMode(object):
 
 	async def flush_game_session(self, data):
 		try:
-			async with self._game_server as server:
+			async with self._game_server.room_lock(self.room_name):
 				if self._disconnected:
 					return
 				if data['player'] == self.player_position:
@@ -200,7 +200,7 @@ class OnlineMode(object):
 	async def disconnect(self, channel_name, channel_layer, game_mode):
 		if not self._game_session:
 			return
-		async with self._game_server as server:
+		async with self._game_server.room_lock(self.room_name):
 			session = self._game_session
 			session.remove_consumer(self.player_position, self)
 			if session.current_players == 1:

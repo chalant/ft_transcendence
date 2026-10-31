@@ -87,10 +87,10 @@ class LocalMode(object):
 	async def start_session(self, game_mode, state_callback):
 		if not self._loaded:
 			await self._load_players()
-		async with self._game_server as server:
+		async with self._game_server.room_lock(self.room_name):
 			if not self.game_room:
 				self.game_room = await self.get_game_room()
-			session = server.get_game_session(self.game_room, game_mode)
+			session = self._game_server.get_game_session(self.game_room, game_mode)
 			session.current_players = 2
 			for i, player_room in enumerate(self._player_rooms):
 				position = await get_player_position(player_room)
@@ -147,11 +147,11 @@ class LocalMode(object):
 	async def disconnect(self, channel_name, channel_layer, game_mode):
 		self._loaded = False
 		self._disconnected = True
-		async with self._game_server as server:
+		async with self._game_server.room_lock(self.room_name):
 			game_room = await get_game_room(self.room_name)
 			if game_room:
-				session = server.get_game_session(game_room, game_mode)
+				session = self._game_server.get_game_session(game_room, game_mode)
 				session.remove_consumer(0, self)
-				server.remove_session(session._session_id)
+				self._game_server.remove_session(session._session_id)
 				await delete_game_room(game_room)
 			await channel_layer.group_discard(self.room_name, self.consumer.channel_name)
