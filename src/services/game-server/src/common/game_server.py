@@ -1,9 +1,9 @@
 import json
 import asyncio
+import logging
 import os
 import django
 import urllib
-import html
 
 
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -23,6 +23,8 @@ from common.local_game import LocalMode
 from common.online_game import OnlineMode
 from common.tournament_mode import TournamentMode
 from common.quick_game import QuickGameMode
+
+logger = logging.getLogger(__name__)
 
 class GameServer(object):
 	def __init__(self, game_factory):
@@ -77,50 +79,38 @@ class GameConsumer(AsyncWebsocketConsumer):
 				}
 			)
 
+	async def _reject(self, reason: str):
+		await self.accept()
+		await self.send_json({
+			"type": "websocket.close",
+			"code": 4000,  # Custom close code
+			"reason": reason
+		})
+		await self.close()
+
 	async def connect(self):
 
 		self.room_name = room_name = self.scope['url_route']['kwargs']['room_name']
+		logger.info("ws connect room=%s", room_name)
 		query_string = self.scope.get('query_string').decode('utf-8')
 		params = urllib.parse.parse_qs(query_string)
 		token = params.get('token', [''])[0]  # Use the first element if available
 		csrf = params.get('csrf_token', [''])[0]
-		token = html.escape(token)
-		csrf = html.escape(csrf)
 
 		if not token and not csrf:
-			await self.accept()
-			await self.send_json({
-				"type": "websocket.close",
-				"code": 4000,  # Custom close code
-				"reason": "Tokens are missing."
-			})
-			await self.close()
-			return
+			return await self._reject("Tokens are missing.")
 
-		self.user = user = auth.get_user_with_token(token, csrf)
+		# blocking HTTP call to the users service: keep it off the event loop.
+		self.user = user = await asyncio.to_thread(auth.get_user_with_token, token, csrf)
 		if not user:
-			await self.accept()
-			await self.send_json({
-				"type": "websocket.close",
-				"code": 4000,  # Custom close code
-				"reason": "Invalid tokens."
-			})
-			await self.close()
-			return
+			return await self._reject("Invalid tokens.")
 
 		# create game locality mode.
 		if params.get('local'):
 			player1 = params.get('player1', [''])[0]
 			player2 = params.get('player2', [''])[0]
 			if player1 == player2:
-				await self.accept()
-				await self.send_json({
-					"type": "websocket.close",
-					"code": 4000,  # Custom close code
-					"reason": "Invalid player names!"
-				})
-				await self.close()
-				return
+				return await self._reject("Invalid player names!")
 			self._game_locality = game_locality = LocalMode(
 				self._game_server,
 				[player1, player2],
@@ -135,25 +125,11 @@ class GameConsumer(AsyncWebsocketConsumer):
 				self)
 
 		if not await game_locality.validate_player():
-			await self.accept()
-			await self.send_json({
-				"type": "websocket.close",
-				"code": 4000,  # Custom close code
-				"reason": "Player has no game room."
-			})
-			await self.close()
-			return
+			return await self._reject("Player has no game room.")
 
 		self.game_room = await game_locality.get_game_room()
 		if not self.game_room:
-			await self.accept()
-			await self.send_json({
-				"type": "websocket.close",
-				"code": 4000,  # Custom close code
-				"reason": "Game Room does not exist"
-			})
-			await self.close()
-			return
+			return await self._reject("Game Room does not exist")
 		# check if the game room is in a tournament room.
 		tournament_room = await get_tournament_room(self.game_room)
 		if tournament_room:
@@ -162,14 +138,7 @@ class GameConsumer(AsyncWebsocketConsumer):
 				tournament_room)
 			tournament = await get_tournament_room_tournament(tournament_room)
 			if not tournament:
-				await self.accept()
-				await self.send_json({
-					"type": "websocket.close",
-					"code": 4000,  # Custom close code
-					"reason": "Tournament does not exist"
-				})
-				await self.close()
-				return
+				return await self._reject("Tournament does not exist")
 			self._game_mode = game_mode = TournamentMode(
 				tournament,
 				tournament_id,
