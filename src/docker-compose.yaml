@@ -89,7 +89,6 @@ services:
     restart: always
 
   game-server:
-    container_name: game-server
     image:
       game-server-image
     build:
@@ -111,6 +110,8 @@ services:
       POSTGRES_USER : "${POSTGRES_USER}"
       POSTGRES_PASSWORD : "${POSTGRES_PASSWORD}"
       DJANGO_SECRET_KEY: "${DJANGO_SECRET_KEY}"
+    deploy:
+      replicas: ${GAME_SERVER_REPLICAS:-2}
     restart: always
 
   postgresql:

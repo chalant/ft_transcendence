@@ -62,8 +62,8 @@ gameServer:
   image:
     repository: game-server-image
     tag: latest
-  # Pause timeout and live game sessions are held in memory: the game server
-  # always runs as a single replica.
+  replicas: 2
+  # Rooms are pinned to a replica by the proxy (consistent hash of the room name).
   resources: {}
 
 matchmaking:

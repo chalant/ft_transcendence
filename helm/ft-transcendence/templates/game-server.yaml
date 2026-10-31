@@ -6,6 +6,9 @@ metadata:
   labels:
     {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
 spec:
+  # headless: DNS answers with every ready pod address, which the proxy needs
+  # to route rooms to a specific replica (a ClusterIP would load-balance).
+  clusterIP: None
   selector:
     {{- include "ft.selectorLabels" (dict "root" . "component" $component) | nindent 4 }}
   ports:
@@ -20,9 +23,11 @@ metadata:
   labels:
     {{- include "ft.labels" (dict "root" . "component" $component) | nindent 4 }}
 spec:
-  # game sessions live in this process's memory: a second replica would split
-  # the players of a room, and a rolling update would run two at once.
-  replicas: 1
+  # game sessions live in the memory of one replica: the proxy pins every
+  # websocket of a room to one pod (consistent hash of the room name over the
+  # pod addresses from the headless Service). A rolling update would run old
+  # and new pods together and remap rooms, hence Recreate.
+  replicas: {{ .Values.gameServer.replicas }}
   strategy:
     type: Recreate
   selector:
